@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+
+<!-- Example based on http://bl.ocks.org/mbostock/3887118 -->
+<!-- Tooltip example from http://www.d3noob.org/2013/01/adding-tooltips-to-d3js-graph.html -->
+<!-- Coding style based on http://gist.github.com/mbostock/5977197 -->
+
+<style>
+body {
+  font: 11px sans-serif;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.dot {
+  stroke: #000;
+}
+
+.tooltip {
+  position: absolute;
+  width: 200px;
+  height: 28px;
+  pointer-events: none;
+}
+
+
+ body {
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        width: 960px;
+        height: 500px;
+        position: relative;
+    }
+svg {  width: 100%;
+        height: 100%;
+        position: center;
+    }
+
+    .toolTip {
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        position: absolute;
+        display: none;
+        width: auto;
+        height: auto;
+        background: none repeat scroll 0 0 white;
+        border: 0 none;
+        border-radius: 8px 8px 8px 8px;
+        box-shadow: -3px 3px 15px #888888;
+        color: black;
+        font: 12px sans-serif;
+        padding: 5px;
+        text-align: center;
+    }
+
+    text {
+        font: 10px sans-serif;
+        color: white;
+    }
+    text.value {
+        font-size: 120%;
+        fill: white;
+    }
+
+    .axisHorizontal path{
+        fill: none;
+    }
+
+    .axisHorizontal .tick line {
+        stroke-width: 1;
+        stroke: rgba(0, 0, 0, 0.2);
+    }
+
+    .bar {
+        fill: steelblue;
+        fill-opacity: .9;
+    }
+
+
+
+.bar:hover {
+  fill: brown;
+}
+
+.axis--x path {
+  display: none;
+}
+td, th {
+    padding: 2px 4px;
+}
+
+th {
+    font-weight: bold;
+}
+
+    * { 
+        margin: 0; 
+        padding: 0; 
+      }
+      body { 
+         font: 14px/1.4 Georgia, Serif; 
+      }
+     #page-wrap {
+        margin: 50px;
+     }
+     p {
+       margin: 20px 0; 
+     }
+
+      /* 
+      Generic Styling, for Desktops/Laptops 
+      */
+      table { 
+           width: 100%; 
+           border-collapse: collapse; 
+      }
+      /* Zebra striping */
+      tr:nth-of-type(odd) { 
+           background: #eee; 
+      }
+      th { 
+           background: #333; 
+           color: white; 
+           font-weight: bold; 
+           cursor: s-resize;
+           background-repeat: no-repeat;
+         background-position: 3% center;
+      }
+      td, th { 
+           padding: 6px; 
+           border: 1px solid #ccc; 
+           text-align: left; 
+      }
+
+      th.des:after {
+       content: "\21E9";
+     }
+
+     th.aes:after {
+       content: "\21E7";
+     }
+
+      /* 
+      Max width before this PARTICULAR table gets nasty
+      This query will take effect for any screen smaller than 760px
+      and also iPads specifically.
+      */
+      @media 
+      only screen and (max-width: 760px),
+      (min-device-width: 768px) and (max-device-width: 1024px)  {
+
+           /* Force table to not be like tables anymore */
+           table, thead, tbody, th, td, tr { 
+                display: block; 
+           }
+
+           /* Hide table headers (but not display: none;, for accessibility) */
+           thead tr { 
+                position: absolute;
+                top: -9999px;
+                left: -9999px;
+           }
+
+           tr { border: 1px solid #ccc; }
+
+           td { 
+                /* Behave  like a "row" */
+                border: none;
+                border-bottom: 1px solid #eee; 
+                position: relative;
+                padding-left: 50%; 
+           }
+
+           td:before { 
+                /* Now like a table header */
+                position: absolute;
+                /* Top/left values mimic padding */
+                top: 6px;
+                left: 6px;
+                width: 45%; 
+                padding-right: 10px; 
+                white-space: nowrap;
+           }
+
+           /*
+           Label the data
+           */
+           td:before {
+             content: attr(data-th) ": ";
+           font-weight: bold;
+           width: 6.5em;
+           display: inline-block;
+           }
+      }
+
+</style>
+<body>
+ <div id="ScatterPlot"></div>
+ <div id="barChart"></div>
+<div id="page-wrap">
+				
+<script src="http://d3js.org/d3.v3.min.js"></script>
+
+<script>
+var margin = {top: 20, right: 20, bottom: 30, left: 40},
+    width = 960 - margin.left - margin.right,
+    height = 500 - margin.top - margin.bottom;
+
+
+	
+/* 
+
+ * value accessor - returns the value to encode for a given data object.
+ * scale - maps value to a visual display encoding, such as a pixel position.
+ * map function - maps from data value to display value
+ * axis - sets up axis
+ */ 
+
+// setup x 
+var xValue = function(d) { return d.fb_likes;}, // data -> value
+    xScale = d3.scale.linear().range([0, width]), // value -> display
+    xMap = function(d) { return xScale(xValue(d));}, // data -> display
+    xAxis = d3.svg.axis().scale(xScale).orient("bottom");
+
+// setup y
+var yValue = function(d) { return d["imdb_avg"];}, // data -> value
+    yScale = d3.scale.linear().range([height, 0]), // value -> display
+    yMap = function(d) { return yScale(yValue(d));}, // data -> display
+    yAxis = d3.svg.axis().scale(yScale).orient("left");
+
+// setup fill color
+var cValue = function(d) { return d.Manufacturer;},
+    color = d3.scale.category10();
+
+// add the graph canvas to the body of the webpage
+var svg = d3.select("#ScatterPlot").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+	.append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+// add the tooltip area to the webpage
+var tooltip = d3.select("#ScatterPlot").append("div")
+    .attr("class", "tooltip")
+    .style("opacity", 0);
+
+// load data
+d3.csv("../data/act2.csv", function(error, data) {
+
+  // change string (from CSV) into number format
+  data.forEach(function(d) {
+    d.fb_likes = +d.fb_likes;
+    d["imdb_avg"] = +d["imdb_avg"];
+    console.log(d);
+  });
+
+  // don't want dots overlapping axis, so add in buffer to data domain
+  xScale.domain([d3.min(data, xValue)-1, d3.max(data, xValue)+1]);
+  yScale.domain([d3.min(data, yValue)-1, d3.max(data, yValue)+1]);
+
+  // x-axis
+  svg.append("g")
+      .attr("class", "x axis")
+      .attr("transform", "translate(0," + height + ")")
+      .call(xAxis)
+    .append("text")
+      .attr("class", "label")
+      .attr("x", width)
+      .attr("y", -6)
+      .style("text-anchor", "end")
+      .text("FB_likes");
+
+  // y-axis
+  svg.append("g")
+      .attr("class", "y axis")
+      .call(yAxis)
+      .append("text")
+      .attr("class", "label")
+      .attr("transform", "rotate(-90)")
+      .attr("y", 6)
+      .attr("dy", ".71em")
+      .style("text-anchor", "end")
+      .text("IMDB scores");
+
+  // draw dots
+  svg.selectAll(".dot")
+      .data(data)
+    .enter().append("circle")
+      .attr("class", "dot")
+      .attr("r", 3.5)
+      .attr("cx", xMap)
+      .attr("cy", yMap)
+      .style("fill", function(d) { return color(cValue(d));}) 
+      .on("mouseover", function(d) {
+          tooltip.transition()
+               .duration(200)
+               .style("opacity", .9);
+          tooltip.html(d["name"] + "<br/> (" + xValue(d) 
+	        + ", " + yValue(d) + ") <br/> Count of movies:" + d["num"])
+               .style("left", (d3.event.pageX + 5) + "px")
+               .style("top", (d3.event.pageY - 28) + "px");
+			   
+			drawGraphs(d["name"]);	
+      })
+      .on("mouseout", function(d) {
+          tooltip.transition()
+               .duration(500)
+               .style("opacity", 0);
+		//  drawGraphs();	
+      });
+
+  // draw legend
+  var legend = svg.selectAll(".legend")
+      .data(color.domain())
+    .enter().append("g")
+      .attr("class", "legend")
+      .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; });
+
+  // draw legend colored rectangles
+  legend.append("rect")
+      .attr("x", width - 18)
+      .attr("width", 18)
+      .attr("height", 18)
+      .style("fill", color);
+
+  // draw legend text
+  legend.append("text")
+      .attr("x", width - 24)
+      .attr("y", 9)
+      .attr("dy", ".35em")
+      .style("text-anchor", "end")
+      .text(function(d) { return d;})
+});
+    
+	
+	function drawGraphs(actor) {
+      
+	  
+		d3.csv("../data/actor2.csv", function(data) {
+			var query = data
+               .filter(function(d) { return d.actor_1_name == actor; })
+               .map(function(d) { 
+                     return {
+                        genres: d.genres,
+                        score: +d.score,
+						Num: +d.Num
+                     };
+                });
+			BarChart(query);
+        });
+		
+	
+		d3.csv("../data/movie2.csv", function(error, data) {
+			var query = data
+               .filter(function(d) { return d.actor_1_name == actor; })
+               .map(function(d) { 
+                     return {
+						actor_1_name: d.actor_1_name,
+                        genres: d.genres,
+                        title_year: d.title_year,
+						imdb_score: d.imdb_score,
+						movie_facebook_likes: d.movie_facebook_likes,
+						movie_title: d.movie_title
+                     };
+					  });
+			Table(error,query);
+		});
+		
+		
+    }
+	
+
+
+/*BarChart*/
+function BarChart(query) {
+  var div = d3.select("#barChart").append("div").attr("class", "toolTip");
+
+	//var chart = document.getElementById("barChart");
+    var axisMargin = 20,
+            margin = 40,
+            valueMargin = 4,
+			//width = chart.offsetWidth,
+			//height = chart.offsetHeight,
+            width = parseInt(d3.select('body').style('width'), 10),
+            height = parseInt(d3.select('body').style('height'), 10),
+            barHeight = (height-axisMargin-margin*2)* 0.4/query.length,
+            barPadding = (height-axisMargin-margin*2)*0.6/query.length,
+            query, bar, svg, scale, xAxis, labelWidth = 0;
+
+
+	
+    max = d3.max(query, function(d) { return d.score; });
+	d3.select('#barChart').select("svg").remove();//body
+    svg = d3.select('#barChart')
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height);
+
+
+    bar = svg.selectAll("g")
+            .data(query)
+            .enter()
+            .append("g");
+
+    bar.attr("class", "bar")
+            .attr("cx",0)
+            .attr("transform", function(d, i) {
+                return "translate(" + margin + "," + (i * (barHeight + barPadding) + barPadding) + ")";
+            });
+
+    bar.append("text")
+            .attr("class", "label")
+            .attr("y", barHeight / 2)
+            .attr("dy", ".35em") //vertical align middle
+            .text(function(d){
+                return d.genres;
+            }).each(function() {
+        labelWidth = Math.ceil(Math.max(labelWidth, this.getBBox().width));
+    });
+
+    scale = d3.scale.linear()
+            .domain([0, 10])
+            .range([0, width - margin*2 - labelWidth]);
+
+    xAxis = d3.svg.axis()
+            .scale(scale)
+            .tickSize(-height + 2*margin + axisMargin)
+			.orient("bottom");
+
+    bar.append("rect")
+            .attr("transform", "translate("+labelWidth+", 0)")
+            .attr("height", barHeight)
+            .attr("width", function(d){
+                return scale(d.score);
+            });
+
+    bar.append("text")
+            .attr("class", "value")
+            .attr("y", barHeight / 2)
+            .attr("dx", -valueMargin + labelWidth) //margin right
+            .attr("dy", ".35em") //vertical align middle
+            .attr("text-anchor", "end")
+            .text(function(d){
+                return (d.score);
+            })
+            .attr("x", function(d){
+                var width = this.getBBox().width;
+                return Math.max(width + valueMargin, scale(d.score));
+            });
+
+    bar
+            .on("mousemove", function(d){
+                div.style("left", d3.event.pageX+10+"px");
+                div.style("top", d3.event.pageY-25+"px");
+                div.style("display", "inline-block");
+                div.html((d.genres)+"<br>score:"+(d.score)+"<br>num:"+(d.Num));
+            });
+    bar
+            .on("mouseout", function(d){
+                div.style("display", "none");
+            });
+
+    svg.insert("g",":first-child")
+            .attr("class", "axisHorizontal")
+            .attr("transform", "translate(" + (margin + labelWidth) + ","+ (height - axisMargin - margin)+")")
+            .call(xAxis);
+
+}
+
+/*Table*/
+
+function Table(error, data) {
+      if (error) throw error;
+
+	  
+	 
+	  
+      var sortAscending = true;
+	  d3.select('#page-wrap').select("table").remove();//body
+	  
+      var table = d3.select('#page-wrap').append('table');
+      var titles = d3.keys(data[0]);
+      var headers = table.append('thead').append('tr')
+                       .selectAll('th')
+                       .data(titles).enter()
+                       .append('th')
+                       .text(function (d) {
+                            return d;
+                        })
+                       .on('click', function (d) {
+                           headers.attr('class', 'header');
+
+		if (sortAscending) {
+			rows.sort(function(a, b) {return d3.ascending(b[d], a[d]);  });
+			sortAscending = false;
+			this.className = 'aes';
+		} 
+		else {
+			rows.sort(function(a, b) { return d3.descending(b[d], a[d]); });
+			sortAscending = true;
+			this.className = 'des';
+		}
+
+                       });
+					   
+		
+		
+      var rows = table.append('tbody').selectAll('tr')
+                   .data(data).enter()
+                   .append('tr');
+      rows.selectAll('td')
+        .data(function (d) {
+            return titles.map(function (k) {
+                return { 'value': d[k], 'name': k};
+            });
+        }).enter()
+        .append('td')
+        .attr('data-th', function (d) {
+            return d.name;
+        })
+        .text(function (d) {
+            return d.value;
+        });
+ 
+  }
+
+</script>
+</body>
+</html>
